@@ -1,0 +1,26 @@
+{
+  "name": "confio",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Chrome extension that flags suspicious Gmail messages for non-technical users.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:inbox": "tsx src/scripts/testOnRealInbox.ts"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.7.1",
+    "@types/chrome": "^0.2.7",
+    "@types/node": "^26.3.0",
+    "tsx": "^4.19.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
+    "vitest": "^2.1.8"
+  },
+  "dependencies": {
+    "googleapis": "^149.0.0"
+  }
+}

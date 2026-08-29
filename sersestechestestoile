@@ -1,0 +1,114 @@
+import type {
+  AuthProtocolResult,
+  GmailHeader,
+  MailAuthSignals,
+  ParsedFrom,
+} from './types'
+
+export function getHeader(headers: GmailHeader[], name: string): string | null {
+  const needle = name.toLowerCase()
+  const match = headers.find((header) => header.name.toLowerCase() === needle)
+  return match?.value ?? null
+}
+
+export function parseFromHeader(raw: string | null): ParsedFrom {
+  if (!raw) {
+    return { raw: null, displayName: null, emailAddress: null, domain: null }
+  }
+
+  const decoded = decodeMimeHeader(raw)
+  const angle = decoded.match(/^(.*?)\s*<([^>]+)>/)
+  const candidate = angle ? angle[2] : decoded
+  const emailMatch = candidate.match(/[A-Z0-9._%+\-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)
+  const emailAddress = (emailMatch ? emailMatch[0] : candidate).trim().replace(/^mailto:/i, '')
+  const displayName = angle ? unquote(angle[1].trim()) : null
+  const domain = emailAddress.includes('@')
+    ? emailAddress.split('@').pop()?.toLowerCase() ?? null
+    : null
+
+  return {
+    raw: decoded,
+    displayName: displayName ? decodeMimeHeader(displayName) : null,
+    emailAddress: emailAddress || null,
+    domain,
+  }
+}
+
+/**
+ * Extrait SPF / DKIM / DMARC des en-têtes — lecture seule, pas de score.
+ * Gmail agrège ça dans Authentication-Results (et parfois Received-SPF).
+ */
+export function extractAuthSignals(headers: GmailHeader[]): MailAuthSignals {
+  const authenticationResults = getHeader(headers, 'Authentication-Results')
+  const receivedSpf = getHeader(headers, 'Received-SPF')
+  const source = `${authenticationResults ?? ''} ${receivedSpf ?? ''}`
+
+  return {
+    spf: readAuthResult(source, 'spf'),
+    dkim: readAuthResult(source, 'dkim'),
+    dmarc: readAuthResult(source, 'dmarc'),
+    authenticationResults,
+    receivedSpf,
+  }
+}
+
+function readAuthResult(source: string, mechanism: 'spf' | 'dkim' | 'dmarc'): AuthProtocolResult {
+  const match = Array.from(source.matchAll(new RegExp(`\\b${mechanism}\\s*(?:=|:)\\s*([a-z]+)`, 'gi')))
+    .map((entry) => entry[1]?.toLowerCase())
+    .find(Boolean)
+
+  if (!match) {
+    return 'none'
+  }
+
+  const normalised = match.toLowerCase()
+
+  if (normalised === 'pass') {
+    return 'pass'
+  }
+
+  if (['fail', 'softfail', 'permerror', 'temperror'].includes(normalised)) {
+    return 'fail'
+  }
+
+  if (normalised === 'neutral') {
+    return 'neutral'
+  }
+
+  if (normalised === 'none') {
+    return 'none'
+  }
+
+  return 'unknown'
+}
+
+function unquote(value: string): string {
+  return value.replace(/^['"]|['"]$/g, '').trim()
+}
+
+function decodeMimeHeader(value: string): string {
+  return value.replace(/=\?([^?]+)\?([bBqQ])\?([^?]*)\?=/g, (_, charset, encoding, encoded) => {
+    const raw = encoding.toLowerCase() === 'b' ? decodeBase64(encoded) : decodeQEncoding(encoded)
+    return raw.replace(/_/g, ' ').trim()
+  })
+}
+
+function decodeBase64(value: string): string {
+  const padded = value.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/')
+  const normalized = padded + '='.repeat((4 - (padded.length % 4)) % 4)
+
+  try {
+    const binary = typeof Buffer !== 'undefined'
+      ? Buffer.from(normalized, 'base64')
+      : atob(normalized)
+    return typeof binary === 'string' ? binary : new TextDecoder('utf-8').decode(binary)
+  } catch {
+    return value
+  }
+}
+
+function decodeQEncoding(value: string): string {
+  return value
+    .replace(/=([A-Fa-f0-9]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/_/g, ' ')
+}

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Confio</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <main class="panel">
+      <header class="header">
+        <p class="eyebrow">Étape 1 — auth + Gmail</p>
+        <h1>Confio</h1>
+        <p id="status" class="status">Vérification de la session…</p>
+      </header>
+
+      <div class="actions">
+        <button id="sign-in" type="button">Se connecter avec Google</button>
+        <button id="fetch-mails" type="button" hidden>Charger 10 mails</button>
+        <button id="sign-out" type="button" class="ghost" hidden>Se déconnecter</button>
+      </div>
+
+      <p id="hint" class="hint">
+        Les détails (From, SPF, DKIM, DMARC, en-têtes) sont aussi dans la console du
+        <strong>service worker</strong> : chrome://extensions → Confio → « Inspecter les vues :
+        service worker ».
+      </p>
+
+      <ol id="mail-list" class="mail-list" hidden></ol>
+    </main>
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>
