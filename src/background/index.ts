@@ -4,7 +4,7 @@ import { runInboxRiskCheck } from '../scripts/testOnRealInbox'
 
 import { getAccessToken, getSignedInEmail, signOut } from '../auth/identity'
 import { isOAuthClientConfigured } from '../config'
-import { fetchRecentInboxMails } from '../gmail/client'
+import { fetchRecentInboxMails, fetchRecentSpamMails } from '../gmail/client'
 import type { AuthState, ExtensionRequest, ExtensionResponse } from '../messaging'
 import type { InboxPreviewResult } from '../gmail/types'
 
@@ -38,6 +38,8 @@ async function handleMessage(message: ExtensionRequest): Promise<unknown> {
       return { signedIn: false, email: null } satisfies AuthState
     case 'FETCH_RECENT_MAILS':
       return fetchRecentInboxMails()
+    case 'FETCH_RECENT_SPAM_MAILS':
+      return fetchRecentSpamMails()
     default:
       throw new Error('Message inconnu')
   }

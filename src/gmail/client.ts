@@ -5,7 +5,7 @@ import { parseGmailMessage } from './parseGmailMessage'
 import type { GmailHeader, InboxMailPreview, InboxPreviewResult } from './types'
 
 const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1/users/me'
-const INBOX_PAGE_SIZE = 10
+const MAIL_PAGE_SIZE = 10
 
 type MessageListResponse = {
   messages?: Array<{ id: string; threadId: string }>
@@ -28,18 +28,26 @@ type MessageGetResponse = {
  * Aucune logique de détection : on récupère et on log.
  */
 export async function fetchRecentInboxMails(): Promise<InboxPreviewResult> {
+  return fetchRecentMails('INBOX')
+}
+
+export async function fetchRecentSpamMails(): Promise<InboxPreviewResult> {
+  return fetchRecentMails('SPAM')
+}
+
+async function fetchRecentMails(label: 'INBOX' | 'SPAM'): Promise<InboxPreviewResult> {
   const token = await getAccessToken(false)
   const accountEmail = await getSignedInEmail(token)
 
   const list = await gmailFetch<MessageListResponse>(
     token,
-    `${GMAIL_API}/messages?maxResults=${INBOX_PAGE_SIZE}&labelIds=INBOX`,
+    `${GMAIL_API}/messages?maxResults=${MAIL_PAGE_SIZE}&labelIds=${label}`,
   )
 
   const ids = list.messages ?? []
   const mails = await Promise.all(ids.map((item) => fetchMailPreview(token, item.id)))
 
-  logInboxPreview(accountEmail, mails)
+  logMailPreview(label, accountEmail, mails)
 
   return { accountEmail, mails }
 }
@@ -66,7 +74,23 @@ async function fetchMailPreview(token: string, messageId: string): Promise<Inbox
     riskScore: risk.score,
     riskLevel: risk.level,
     triggeredSignals: risk.triggeredSignals.map(({ signal, explanation }) => ({ signal, explanation })),
+    links: parsedEmail.links.map(({ displayText, actualUrl }) => ({
+      displayHost: extractHost(displayText),
+      actualHost: extractHost(actualUrl),
+    })),
     headers,
+  }
+}
+
+function extractHost(value: string): string | null {
+  const input = value.trim()
+  if (!input) return null
+
+  try {
+    const candidate = /^https?:\/\//i.test(input) ? input : `https://${input}`
+    return new URL(candidate).hostname.toLowerCase()
+  } catch {
+    return null
   }
 }
 
@@ -89,8 +113,8 @@ async function gmailFetch<T>(token: string, url: string, retried = false): Promi
   return (await response.json()) as T
 }
 
-function logInboxPreview(accountEmail: string | null, mails: InboxMailPreview[]): void {
-  console.group(`[Confio] ${mails.length} mail(s) INBOX — ${accountEmail ?? 'compte inconnu'}`)
+function logMailPreview(label: 'INBOX' | 'SPAM', accountEmail: string | null, mails: InboxMailPreview[]): void {
+  console.group(`[Confio] ${mails.length} mail(s) ${label} — ${accountEmail ?? 'compte inconnu'}`)
 
   for (const [index, mail] of mails.entries()) {
     console.group(`${index + 1}. ${mail.subject ?? '(sans objet)'}`)

@@ -17,15 +17,14 @@ const normalize = (value: string): string =>
 
 const extractDomain = (value?: string | null): string | null => {
   const input = (value ?? '').trim()
-  if (!input) return null
+  if (!input || /\s/.test(input)) return null
 
   try {
     const normalized = /^https?:\/\//i.test(input) ? input : `https://${input}`
-    const url = new URL(normalized)
-    return url.hostname.toLowerCase()
+    const hostname = new URL(normalized).hostname.toLowerCase()
+    return hostname.includes('.') ? hostname : null
   } catch {
-    const match = input.match(/(?:[a-z0-9-]+\.)+[a-z]{2,}/i)
-    return match ? match[0].toLowerCase() : null
+    return null
   }
 }
 

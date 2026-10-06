@@ -110,6 +110,12 @@ button.ghost {
   font-size: 11px;
 }
 
+.mail-list .signals {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .error {
   color: var(--danger);
 }

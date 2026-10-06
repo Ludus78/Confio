@@ -26,6 +26,11 @@ export type TriggeredSignalSummary = {
   explanation: string
 }
 
+export type LinkDomainSummary = {
+  displayHost: string | null
+  actualHost: string | null
+}
+
 export type RiskLevel = 'safe' | 'caution' | 'suspicious'
 
 export type InboxMailPreview = {
@@ -39,6 +44,7 @@ export type InboxMailPreview = {
   riskScore: number
   riskLevel: RiskLevel
   triggeredSignals: TriggeredSignalSummary[]
+  links: LinkDomainSummary[]
   /** Tous les en-têtes, pour inspecter en console. */
   headers: GmailHeader[]
 }
